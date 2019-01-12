@@ -1,0 +1,42 @@
+version: '3'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
+    ports:
+      - 9200:9200
+    volumes:
+      - ./elasticsearch/data:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/elasticsearch.yml:/etc/elasticsearch/elasticsearch.yml
+      - ./elasticsearch/config/user_dictionary.dic:/etc/elasticsearch/analysis/user_dictionary.dic
+    environment:
+      - discovery.type=single-node
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana-oss:6.3.2
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: "http://elasticsearch:9200"
+    depends_on:
+    - elasticsearch
+
+  fluentd:
+    image: ch08/fluentd-elasticsearch:latest
+    ports:
+      - "24224:24224"
+      - "24220:24220"
+      - "24224:24224/udp"
+    depends_on:
+    - elasticsearch
+
+  echo:
+    image: gihyodocker/echo:latest
+    ports:
+      - "8080:8080"
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        tag: "docker.{{.Name}}"
+    depends_on:
+      - fluentd
